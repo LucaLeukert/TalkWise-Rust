@@ -6,6 +6,7 @@ mod compiler;
 mod lexer;
 mod error;
 mod parser;
+mod parsed_types;
 
 fn main() -> Result<(), error::TalkError> {
     println!("TalkWise compiler written in Rust.");

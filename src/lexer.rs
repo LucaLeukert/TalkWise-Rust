@@ -15,6 +15,17 @@ impl Span {
             end,
         }
     }
+
+    pub fn merge(&self, other: &Span) -> Self {
+        let start = if self.start < other.start { self.start } else { other.start };
+        let end = if self.end > other.end { self.end } else { other.end };
+
+        Self {
+            file_id: self.file_id,
+            start,
+            end,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,7 +56,7 @@ pub enum TokenContents {
     Mut,
     Colon,
     ThinArrow,
-    
+
     Garbage,
     EOF,
 }
@@ -116,7 +127,7 @@ impl Lexer {
                     Token::new(TokenContents::ThinArrow, Span::new(self.file_id, self.position - 1, self.position + 1))
                 } else {
                     Token::new(TokenContents::Minus, Span::new(self.file_id, self.position, self.position + 1))
-                }  
+                }
             },
             b'=' => Token::new(TokenContents::Equal, Span::new(self.file_id, self.position, self.position + 1)),
             b',' => Token::new(TokenContents::Comma, Span::new(self.file_id, self.position, self.position + 1)),

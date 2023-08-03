@@ -1,63 +1,8 @@
+use std::fmt::Debug;
+
 use crate::compiler::FileId;
-use crate::lexer::{Span, Token, TokenContents};
-
-#[derive(Debug)]
-pub struct ParsedBlock {
-    pub statements: Vec<ParsedStatement>,
-    pub span: Span,
-}
-impl ParsedBlock {
-    pub fn new() -> Self {
-        Self {
-            statements: Vec::new(),
-            span: Span::new(0, 0, 0)
-        }
-    }
-    pub fn new_with_span(span: Span) -> Self {
-        Self {
-            statements: Vec::new(),
-            span
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ParsedFunction {
-    pub name: String,
-    pub name_span: Span,
-
-    pub block: ParsedBlock,
-
-    pub span: Span,
-}
-impl ParsedFunction {
-    pub fn new() -> Self {
-        Self {
-            name: String::new(),
-            name_span: Span::new(0, 0, 0),
-            block: ParsedBlock::new(),
-            span: Span::new(0, 0, 0),
-        }
-    }
-}
-
-pub struct ParsedProgram {
-    pub functions: Vec<ParsedFunction>,
-    pub span: Span,
-}
-impl ParsedProgram {
-    pub fn new() -> Self {
-        Self {
-            functions: Vec::new(),
-            span: Span::new(0, 0, 0),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ParsedStatement {
-    Return,
-}
+use crate::lexer::{Token, TokenContents};
+use crate::parsed_types::{ParsedBlock, ParsedExpression, ParsedFunction, ParsedProgram, ParsedStatement};
 
 pub struct Parser {
     pub file_id: FileId,
@@ -65,6 +10,7 @@ pub struct Parser {
     pub position: usize,
     pub tokens: Vec<Token>,
 }
+
 impl Parser {
     pub fn new(file_id: FileId, file_name: String, tokens: Vec<Token>) -> Self {
         Self {
@@ -75,22 +21,27 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) {
+    pub fn parse(&mut self) -> ParsedProgram {
+        let mut program = ParsedProgram::new();
         println!("DEBUG: Parsing file: {}", self.file_name);
 
         while !self.eof() {
             let token = self.current();
 
             match token {
-                Token { contents: TokenContents::Fun, span: _} => {
-                    println!("{:?}", self.parse_function());
+                Token { contents: TokenContents::Fun, span: _ } => {
+                    let function = self.parse_function();
+                    println!("{:?}", function);
+
+                    program.functions.push(function);
                 }
                 _ => {
-                    println!("DEBUG: Unknown token: {:?}", token);
-                    self.advance();
+                    panic!("DEBUG: Unknown token: {:?}", token);
                 }
             }
         }
+
+        return program;
     }
 
     fn parse_function(&mut self) -> ParsedFunction {
@@ -151,12 +102,7 @@ impl Parser {
         self.match_token(TokenContents::LBrace);
 
         while !self.eof() && self.current().contents != TokenContents::RBrace {
-            let statement = match self.current().contents {
-                TokenContents::Return => ParsedStatement::Return,
-                _ => panic!("Unknown statement"),
-            };
-
-            block.statements.push(statement);
+            block.statements.push(self.parse_statement(self.tokens[self.position].clone()));
             self.advance();
         }
 
@@ -165,11 +111,33 @@ impl Parser {
         return block;
     }
 
+    fn parse_statement(&mut self, current: Token) -> ParsedStatement {
+        println!("DEBUG: Parsing statement: {:?}", current);
+
+        return match current {
+            Token { contents: TokenContents::Return, span } => {
+                self.advance();
+                let expression = self.parse_expression();
+                let merged_span = span.merge(&expression.span().clone());
+
+                ParsedStatement::Return(expression, merged_span)
+            }
+            _ => panic!("Unknown statement type"),
+        };
+    }
+
+    fn parse_expression(&mut self) -> ParsedExpression {
+        return match &self.current().contents {
+            TokenContents::Number(numeric) => ParsedExpression::NumericLiteral(numeric.clone(), self.advance().span.clone()),
+            _ => panic!("Unknown expression"),
+        };
+    }
+
     fn match_token(&mut self, token: TokenContents) {
         println!("DEBUG: Matching token: {:?}, current {:?}", token, self.current());
         if self.current().contents == token {
             self.advance();
-            return
+            return;
         }
 
         //FIXME: This should be an error
