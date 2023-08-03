@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::compiler::FileId;
 use crate::lexer::{Token, TokenContents};
 use crate::parsed_types::{ParsedBlock, ParsedExpression, ParsedFunction, ParsedProgram, ParsedStatement};
